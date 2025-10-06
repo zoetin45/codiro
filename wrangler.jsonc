@@ -17,7 +17,8 @@
 		{
 			"binding": "DB",
 			"database_name": "codiro-db",
-			"database_id": "a94c62f0-71a9-4972-8f52-8a4725b4c5bf"
+			"database_id": "a94c62f0-71a9-4972-8f52-8a4725b4c5bf",
+			"migrations_dir": "db/migrations"
 		}
 	]
 	/**

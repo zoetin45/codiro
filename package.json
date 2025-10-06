@@ -15,7 +15,7 @@
     "cf-typegen": "wrangler types",
     "prepare": "husky",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply codiro-db",
+    "db:migrate:production": "wrangler d1 migrations apply codiro-db --remote",
     "db:migrate:local": "wrangler d1 migrations apply codiro-db --local",
     "db:studio": "drizzle-kit studio"
   },
