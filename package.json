@@ -16,6 +16,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "drizzle-orm": "^0.44.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -25,6 +26,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react-swc": "^4.0.0",
+    "drizzle-kit": "^0.31.5",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^5.2.0",
