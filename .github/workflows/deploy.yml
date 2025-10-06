@@ -9,6 +9,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to Cloudflare Workers
+    env:
+      apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     
     steps:
       - name: Checkout code
@@ -35,8 +38,8 @@ jobs:
       - name: Build project
         run: pnpm run build
 
+      - name: Apply D1 Migrations
+        run: pnpm run db:migrate:production
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

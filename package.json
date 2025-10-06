@@ -13,9 +13,14 @@
     "preview": "pnpm run build && vite preview",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:production": "wrangler d1 migrations apply codiro-db --remote",
+    "db:migrate:local": "wrangler d1 migrations apply codiro-db --local",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "drizzle-orm": "^0.44.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -25,6 +30,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react-swc": "^4.0.0",
+    "drizzle-kit": "^0.31.5",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^5.2.0",
