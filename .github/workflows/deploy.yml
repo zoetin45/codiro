@@ -44,4 +44,4 @@ jobs:
         run: pnpm db:migrate:production
 
       - name: Deploy to Cloudflare Workers
-        run: pnpm deploy
+        run: pnpm cf-deploy
