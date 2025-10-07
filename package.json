@@ -11,7 +11,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css}\" \"worker/**/*.{ts,tsx,js,jsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css}\" \"worker/**/*.{ts,tsx,js,jsx}\"",
     "preview": "pnpm run build && vite preview",
-    "deploy": "wrangler deploy",
+    "cf-deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
     "prepare": "husky",
     "db:generate": "drizzle-kit generate",
