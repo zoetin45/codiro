@@ -18,7 +18,8 @@
     "db:migrate:production": "wrangler d1 migrations apply codiro-db --remote",
     "db:migrate:local": "wrangler d1 migrations apply codiro-db --local",
     "db:studio": "drizzle-kit studio",
-    "test": "vitest run",
+    "test": "pnpm test:unit && pnpm test:worker",
+    "test:unit": "vitest run",
     "test:worker": "vitest run --config vitest.config.worker.ts"
   },
   "dependencies": {
