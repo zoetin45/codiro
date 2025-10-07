@@ -1,12 +1,25 @@
-export default {
-  fetch(request) {
-    const url = new URL(request.url)
+import { Hono } from 'hono'
 
-    if (url.pathname.startsWith('/api/')) {
-      return Response.json({
-        name: 'Cloudflare',
-      })
-    }
-    return new Response(null, { status: 404 })
-  },
-} satisfies ExportedHandler<Env>
+const app = new Hono<{ Bindings: Env }>()
+
+// Test endpoint
+app.get('/api/test', (c) => {
+  return c.json({
+    name: 'Hono!',
+    timestamp: new Date().toISOString(),
+  })
+})
+
+// Default API response
+app.get('/api/*', (c) => {
+  return c.json({
+    name: 'Cloudflare',
+  })
+})
+
+// 404 for non-API routes
+app.all('*', (c) => {
+  return c.notFound()
+})
+
+export default app
