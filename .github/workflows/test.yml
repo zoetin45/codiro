@@ -29,8 +29,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run linter & formatter check
-        run: pnpm lint & pnpm format:check
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Run formatter
+        run: pnpm format:check
 
       - name: Build project
         run: pnpm build
