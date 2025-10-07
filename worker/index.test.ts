@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { SELF } from 'cloudflare:test'
 
 describe('Worker', () => {
-  it('responds with test message for /api/test', async () => {
+  it('responds with test name for /api/test', async () => {
     const response = await SELF.fetch('http://localhost/api/test')
     expect(response.status).toBe(200)
 
     const json = await response.json()
-    expect(json).toHaveProperty('message', 'Hello from Hono!')
+    expect(json).toHaveProperty('name', 'Hono!')
     expect(json).toHaveProperty('timestamp')
   })
 
