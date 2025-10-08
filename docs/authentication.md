@@ -2,7 +2,9 @@
 
 ## Overview
 
-Codiro uses JWT-based authentication with GitHub OAuth as the identity provider. We leverage Hono's built-in JWT middleware for token handling and implement OAuth flow with state parameter for security.
+Codiro uses JWT-based authentication with **GitHub App (user-to-server)** OAuth as the identity provider. We leverage Hono's built-in JWT middleware for token handling and implement OAuth flow with state parameter for security.
+
+**Note:** We use GitHub Apps (not OAuth Apps) as they are the recommended approach with fine-grained permissions and better security.
 
 ## Current Status
 
@@ -16,7 +18,7 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
 ### 🔲 TODO (Next Steps)
 
 1. **Environment Setup**
-   - Set up GitHub OAuth App (get Client ID and Secret)
+   - Create GitHub App for OAuth (get Client ID and Client Secret)
    - Configure environment variables (see section below)
    - No KV namespace needed (using D1 only)
 
@@ -36,7 +38,7 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
 ### Functional Requirements
 
 1. **Authentication Provider**
-   - GitHub OAuth only (initially)
+   - GitHub App OAuth only (user-to-server tokens)
    - Extensible architecture for future providers
    - No password-based authentication
 
@@ -148,16 +150,28 @@ GET    /api/auth/me              - Get current user info
 
 ### 1. Environment Setup
 
-#### GitHub OAuth App Setup
+#### GitHub App Setup (for User Authentication)
 
-1. Go to GitHub Settings → Developer Settings → OAuth Apps
-2. Click "New OAuth App"
-3. Fill in:
-   - **Application name**: Codiro (or your app name)
-   - **Homepage URL**: Your app URL (e.g., `http://localhost:5173` for dev)
-   - **Authorization callback URL**: `{APP_URL}/api/auth/github/callback`
-4. Save and copy the Client ID
-5. Generate a new Client Secret and copy it
+1. Go to GitHub Settings → Developer Settings → **GitHub Apps**
+2. Click "New GitHub App"
+3. Fill in the required fields:
+   - **GitHub App name**: Codiro (must be unique across GitHub)
+   - **Homepage URL**: `http://localhost:5173` (for dev) or your production URL
+   - **Callback URL**: `http://localhost:5173/api/auth/github/callback`
+   - **Webhook**: Uncheck "Active" (not needed for user auth)
+
+4. Set **Permissions** (under "Permissions & events"):
+   - **Account permissions** → Email addresses: Read-only
+   - No repository permissions needed (for now)
+
+5. Under **"Where can this GitHub App be installed?"**:
+   - Select "Any account" (for public use)
+
+6. Click "Create GitHub App"
+
+7. **Get Credentials**:
+   - Note the **Client ID** (visible on app page)
+   - Click "Generate a new client secret" and copy it immediately
 
 #### Set Environment Variables
 
@@ -167,15 +181,17 @@ openssl rand -base64 32
 
 # For local development, create .dev.vars file:
 JWT_SECRET=your-generated-secret
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_APP_CLIENT_ID=your-github-app-client-id
+GITHUB_APP_CLIENT_SECRET=your-github-app-client-secret
 APP_URL=http://localhost:5173
 
 # For production, use wrangler secrets:
 pnpm wrangler secret put JWT_SECRET
-pnpm wrangler secret put GITHUB_CLIENT_ID
-pnpm wrangler secret put GITHUB_CLIENT_SECRET
+pnpm wrangler secret put GITHUB_APP_CLIENT_ID
+pnpm wrangler secret put GITHUB_APP_CLIENT_SECRET
 ```
+
+**Note:** GitHub App tokens (starting with `ghu_`) expire in 8 hours by default and can be refreshed using refresh tokens (`ghr_`).
 
 #### Update wrangler.jsonc
 
@@ -283,11 +299,13 @@ export async function initiateGitHubOAuth(c: Context) {
   )
 
   const params = new URLSearchParams({
-    client_id: c.env.GITHUB_CLIENT_ID,
+    client_id: c.env.GITHUB_APP_CLIENT_ID,
     redirect_uri: `${c.env.APP_URL}/api/auth/github/callback`,
-    scope: 'read:user user:email',
     state,
   })
+
+  // Note: GitHub Apps don't use scopes like OAuth Apps
+  // Permissions are set in the GitHub App configuration
 
   return c.redirect(`https://github.com/login/oauth/authorize?${params}`)
 }
@@ -371,13 +389,13 @@ export const jwtAuth = (c: Context, next: Next) => {
 
 ```bash
 # Required secrets (use .dev.vars for local, wrangler secret for production)
-JWT_SECRET           # Generate with: openssl rand -base64 32
-GITHUB_CLIENT_ID     # From GitHub OAuth App
-GITHUB_CLIENT_SECRET # From GitHub OAuth App
+JWT_SECRET                # Generate with: openssl rand -base64 32
+GITHUB_APP_CLIENT_ID      # From GitHub App settings
+GITHUB_APP_CLIENT_SECRET  # From GitHub App settings (generate client secret)
 
 # Configuration (wrangler.jsonc vars)
-APP_URL             # e.g., https://codiro.example.com for production
-                     # http://localhost:5173 for local development
+APP_URL                   # e.g., https://codiro.example.com for production
+                          # http://localhost:5173 for local development
 ```
 
 ## Security Considerations
