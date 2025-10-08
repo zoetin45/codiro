@@ -4,6 +4,34 @@
 
 Codiro uses JWT-based authentication with GitHub OAuth as the identity provider. We leverage Hono's built-in JWT middleware for token handling and implement OAuth flow with state parameter for security.
 
+## Current Status
+
+### ✅ Completed
+
+- **Database Schema**: Users, github_identities, and sessions tables created
+  - Migration: `db/migrations/0000_premium_guardsmen.sql`
+  - Applied to local database
+  - Schema files: `db/schema/users.ts`, `db/schema/github-identities.ts`, `db/schema/sessions.ts`
+
+### 🔲 TODO (Next Steps)
+
+1. **Environment Setup**
+   - Create Cloudflare KV namespace for AUTH_STORE
+   - Set up GitHub OAuth App (get Client ID and Secret)
+   - Configure environment variables (see section below)
+   - Update wrangler.jsonc with KV binding
+
+2. **Backend Implementation**
+   - Create type definitions (`worker/types/auth.ts`)
+   - Implement OAuth flow handlers
+   - Set up JWT middleware
+   - Create auth routes
+
+3. **Frontend Integration**
+   - Add login/logout UI
+   - Handle auth state
+   - Protected routes
+
 ## Requirements
 
 ### Functional Requirements
@@ -78,11 +106,12 @@ GET    /api/auth/me              - Get current user info
 
 ## Implementation Steps
 
-### Phase 1: Environment Setup
+### Phase 1: Environment Setup ✅ PARTIALLY DONE
 
-1. Create Cloudflare KV namespace
-2. Set up environment variables
-3. Create database schema
+- [x] Create database schema
+- [ ] Create Cloudflare KV namespace
+- [ ] Set up environment variables
+- [ ] Configure wrangler.jsonc
 
 ### Phase 2: OAuth Flow Implementation
 
@@ -128,7 +157,24 @@ wrangler kv:namespace create "AUTH_STORE"
 }
 ```
 
-### 2. Database Schema
+### 2. Database Schema ✅ DONE
+
+The schema has been created using Drizzle ORM:
+
+- Location: `db/schema/`
+- Migration: `db/migrations/0000_premium_guardsmen.sql`
+
+**Resetting Database** (if needed):
+
+```bash
+# Local database
+./scripts/reset-db.sh local
+
+# Production database
+./scripts/reset-db.sh remote
+```
+
+**Schema Structure:**
 
 ```sql
 -- Core users table (provider-agnostic)
@@ -151,14 +197,7 @@ CREATE TABLE github_identities (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_github_identities_github_id ON github_identities(github_id);
-
--- Trigger to update users.updated_at
-CREATE TRIGGER users_updated_at
-AFTER UPDATE ON users
-BEGIN
-  UPDATE users SET updated_at = datetime('now') WHERE id = NEW.id;
-END;
+CREATE UNIQUE INDEX github_identities_github_id_unique ON github_identities(github_id);
 ```
 
 ### 3. Type Definitions
