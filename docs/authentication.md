@@ -16,10 +16,9 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
 ### 🔲 TODO (Next Steps)
 
 1. **Environment Setup**
-   - Create Cloudflare KV namespace for AUTH_STORE
    - Set up GitHub OAuth App (get Client ID and Secret)
    - Configure environment variables (see section below)
-   - Update wrangler.jsonc with KV binding
+   - No KV namespace needed (using D1 only)
 
 2. **Backend Implementation**
    - Create type definitions (`worker/types/auth.ts`)
@@ -68,6 +67,17 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
 
 ## Technical Architecture
 
+### Design Decision: D1-Only (No KV)
+
+We use **D1 (SQLite) only** instead of Cloudflare KV because:
+
+- ✅ **Immediate consistency** - Logout invalidates sessions immediately (KV has ~60s propagation delay)
+- ✅ **Simpler architecture** - One storage system instead of two
+- ✅ **Already have it** - No additional infrastructure needed
+- ✅ **Relational data** - Sessions naturally relate to users
+
+**OAuth State** is handled via stateless signed JWT tokens (no storage needed).
+
 ### Libraries Used
 
 - **Hono JWT Middleware** (`hono/jwt`) - For JWT creation and validation
@@ -78,8 +88,8 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
 
 **Dual Token Approach:**
 
-- **Access Token**: Short-lived (15 minutes), contains user claims
-- **Refresh Token**: Long-lived (30 days), stored in KV for invalidation
+- **Access Token**: Short-lived (15 minutes), stateless JWT with user claims
+- **Refresh Token**: Long-lived (30 days), stored in D1 sessions table for invalidation
 
 ### Storage
 
@@ -87,12 +97,14 @@ Codiro uses JWT-based authentication with GitHub OAuth as the identity provider.
    - `access_token`: JWT access token
    - `refresh_token`: JWT refresh token
 
-2. **Cloudflare KV**
-   - OAuth State: `oauth_state:{state}` (TTL: 10 minutes)
-   - Refresh Token: `refresh_token:{token_id}` (TTL: 30 days)
+2. **Database (D1)** - Single source of truth
+   - `users` table: User profiles
+   - `github_identities` table: GitHub OAuth data
+   - `sessions` table: Refresh token sessions (for logout invalidation)
 
-3. **Database (D1)**
-   - Users table: Persistent user information
+3. **OAuth State**: Stateless signed token (no storage needed)
+   - State parameter signed with JWT_SECRET + timestamp
+   - Validated on callback (signature + 10 min expiry check)
 
 ### API Endpoints
 
@@ -108,10 +120,9 @@ GET    /api/auth/me              - Get current user info
 
 ### Phase 1: Environment Setup ✅ PARTIALLY DONE
 
-- [x] Create database schema
-- [ ] Create Cloudflare KV namespace
+- [x] Create database schema (D1 only, no KV needed)
 - [ ] Set up environment variables
-- [ ] Configure wrangler.jsonc
+- [ ] Create GitHub OAuth App
 
 ### Phase 2: OAuth Flow Implementation
 
@@ -137,23 +148,42 @@ GET    /api/auth/me              - Get current user info
 
 ### 1. Environment Setup
 
-#### KV Namespace Creation
+#### GitHub OAuth App Setup
+
+1. Go to GitHub Settings → Developer Settings → OAuth Apps
+2. Click "New OAuth App"
+3. Fill in:
+   - **Application name**: Codiro (or your app name)
+   - **Homepage URL**: Your app URL (e.g., `http://localhost:5173` for dev)
+   - **Authorization callback URL**: `{APP_URL}/api/auth/github/callback`
+4. Save and copy the Client ID
+5. Generate a new Client Secret and copy it
+
+#### Set Environment Variables
 
 ```bash
-# Create KV namespace for auth
-wrangler kv:namespace create "AUTH_STORE"
+# Generate JWT secret
+openssl rand -base64 32
+
+# For local development, create .dev.vars file:
+JWT_SECRET=your-generated-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+APP_URL=http://localhost:5173
+
+# For production, use wrangler secrets:
+pnpm wrangler secret put JWT_SECRET
+pnpm wrangler secret put GITHUB_CLIENT_ID
+pnpm wrangler secret put GITHUB_CLIENT_SECRET
 ```
 
 #### Update wrangler.jsonc
 
 ```json
 {
-  "kv_namespaces": [
-    {
-      "binding": "AUTH_STORE",
-      "id": "your-kv-namespace-id"
-    }
-  ]
+  "vars": {
+    "APP_URL": "https://your-production-url.com"
+  }
 }
 ```
 
@@ -240,14 +270,16 @@ export interface GitHubUser {
 
 ```typescript
 // worker/auth/github.ts
-export async function initiateGitHubOAuth(c: Context) {
-  const state = crypto.randomUUID()
+import { sign, verify } from 'hono/jwt'
 
-  // Store state in KV for verification
-  await c.env.AUTH_STORE.put(
-    `oauth_state:${state}`,
-    JSON.stringify({ timestamp: Date.now() }),
-    { expirationTtl: 600 } // 10 minutes
+export async function initiateGitHubOAuth(c: Context) {
+  // Create signed state token (stateless, no storage needed)
+  const state = await sign(
+    {
+      timestamp: Date.now(),
+      random: crypto.randomUUID(),
+    },
+    c.env.JWT_SECRET
   )
 
   const params = new URLSearchParams({
@@ -264,9 +296,15 @@ export async function initiateGitHubOAuth(c: Context) {
 export async function handleGitHubCallback(c: Context) {
   const { code, state } = c.req.query()
 
-  // Verify state
-  const storedState = await c.env.AUTH_STORE.get(`oauth_state:${state}`)
-  if (!storedState) {
+  // Verify state signature and expiry
+  try {
+    const payload = await verify(state, c.env.JWT_SECRET)
+    const age = Date.now() - payload.timestamp
+    if (age > 10 * 60 * 1000) {
+      // 10 minutes
+      return c.redirect('/?error=state_expired')
+    }
+  } catch {
     return c.redirect('/?error=invalid_state')
   }
 
@@ -331,23 +369,24 @@ export const jwtAuth = (c: Context, next: Next) => {
 
 ## Environment Variables
 
-```
-# Required secrets
+```bash
+# Required secrets (use .dev.vars for local, wrangler secret for production)
 JWT_SECRET           # Generate with: openssl rand -base64 32
 GITHUB_CLIENT_ID     # From GitHub OAuth App
 GITHUB_CLIENT_SECRET # From GitHub OAuth App
 
-# Configuration
-APP_URL             # e.g., https://codiro.example.com
+# Configuration (wrangler.jsonc vars)
+APP_URL             # e.g., https://codiro.example.com for production
+                     # http://localhost:5173 for local development
 ```
 
 ## Security Considerations
 
-1. **State Parameter**: Random UUID for each OAuth request
+1. **State Parameter**: Signed JWT with timestamp, validated on callback (10 min expiry)
 2. **Token Storage**: httpOnly cookies prevent XSS access
-3. **Token Rotation**: New refresh token on each use
-4. **Logout**: Invalidate refresh token in KV
-5. **HTTPS Only**: Secure cookie flag
+3. **Session Management**: Sessions stored in D1 for immediate invalidation on logout
+4. **Token Rotation**: New refresh token on each use (optional enhancement)
+5. **HTTPS Only**: Secure cookie flag in production
 
 ## Error Handling
 
