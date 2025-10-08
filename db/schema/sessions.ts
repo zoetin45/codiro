@@ -1,16 +1,14 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 import { users } from './users'
 
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
-  userId: integer('user_id')
+  userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
 })
 
 export type Session = typeof sessions.$inferSelect
