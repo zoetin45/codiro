@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { getCookie } from 'hono/cookie'
-import { eq } from 'drizzle-orm'
+import { eq, lt } from 'drizzle-orm'
 import { initiateGitHubOAuth, handleGitHubCallback } from '../auth/github'
 import {
   generateAccessToken,
@@ -122,16 +122,19 @@ auth.post('/refresh', async (c) => {
  */
 auth.post('/logout', async (c) => {
   const refreshToken = getCookie(c, 'refresh_token')
+  const db = getDB(c.env.DB)
 
   if (refreshToken) {
     const payload = await verifyRefreshToken(c, refreshToken)
 
     if (payload) {
-      const db = getDB(c.env.DB)
-      // Delete session from database
+      // Delete current session from database
       await db.delete(sessions).where(eq(sessions.id, payload.sessionId))
     }
   }
+
+  // Lazy cleanup: delete all expired sessions
+  await db.delete(sessions).where(lt(sessions.expiresAt, new Date().toISOString()))
 
   // Clear cookies
   clearAuthCookies(c)
