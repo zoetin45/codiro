@@ -1,4 +1,5 @@
 import { sign, verify } from 'hono/jwt'
+import { setCookie, deleteCookie } from 'hono/cookie'
 import type { Context } from 'hono'
 import type { AccessTokenPayload, RefreshTokenPayload, OAuthStatePayload } from '../types/auth'
 
@@ -105,31 +106,28 @@ export async function verifyRefreshToken(
  */
 export function setAuthCookies(c: Context, accessToken: string, refreshToken: string) {
   const isProduction = c.env.APP_URL.startsWith('https://')
-  const cookieOptions = {
+
+  setCookie(c, 'access_token', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'Lax' as const,
+    sameSite: 'Lax',
     path: '/',
-  }
+    maxAge: ACCESS_TOKEN_EXPIRES_IN,
+  })
 
-  c.header(
-    'Set-Cookie',
-    `access_token=${accessToken}; ${Object.entries(cookieOptions)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('; ')}; Max-Age=${ACCESS_TOKEN_EXPIRES_IN}`
-  )
-  c.header(
-    'Set-Cookie',
-    `refresh_token=${refreshToken}; ${Object.entries(cookieOptions)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('; ')}; Max-Age=${REFRESH_TOKEN_EXPIRES_IN}`
-  )
+  setCookie(c, 'refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Lax',
+    path: '/',
+    maxAge: REFRESH_TOKEN_EXPIRES_IN,
+  })
 }
 
 /**
  * Clear auth cookies (logout)
  */
 export function clearAuthCookies(c: Context) {
-  c.header('Set-Cookie', 'access_token=; HttpOnly; Path=/; Max-Age=0')
-  c.header('Set-Cookie', 'refresh_token=; HttpOnly; Path=/; Max-Age=0')
+  deleteCookie(c, 'access_token', { path: '/' })
+  deleteCookie(c, 'refresh_token', { path: '/' })
 }
