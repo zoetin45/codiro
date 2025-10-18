@@ -45,6 +45,17 @@ function App() {
           Edit <code>worker/index.ts</code> to change the name
         </p>
       </div>
+      <div className="card">
+        <button
+          onClick={() => {
+            window.location.href = '/api/auth/github'
+          }}
+          aria-label="login with github"
+        >
+          Login with GitHub
+        </button>
+        <p>Test GitHub OAuth authentication</p>
+      </div>
       <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
     </>
   )
