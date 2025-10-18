@@ -29,6 +29,7 @@ export interface AccessTokenPayload {
   username: string
   exp: number
   iat: number
+  [key: string]: unknown
 }
 
 export interface RefreshTokenPayload {
@@ -36,11 +37,13 @@ export interface RefreshTokenPayload {
   sessionId: string
   exp: number
   iat: number
+  [key: string]: unknown
 }
 
 export interface OAuthStatePayload {
   timestamp: number
   random: string
+  [key: string]: unknown
 }
 
 // GitHub API response types
