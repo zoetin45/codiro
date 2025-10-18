@@ -1,6 +1,9 @@
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
+import { eq } from 'drizzle-orm'
 import { verifyAccessToken } from './jwt'
+import { getDB } from '../db'
+import { users } from '../../db/schema'
 import type { User } from '../types/auth'
 
 /**
@@ -20,19 +23,18 @@ export async function authMiddleware(c: Context, next: Next) {
     return c.json({ error: 'Invalid or expired token' }, 401)
   }
 
-  // Fetch user from database
-  const user = await c.env.DB.prepare(
-    'SELECT id, username, email, avatar_url as avatarUrl, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?'
-  )
-    .bind(payload.sub)
-    .first<User>()
+  // Fetch user from database using Drizzle ORM
+  const db = getDB(c.env.DB)
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, payload.sub),
+  })
 
   if (!user) {
     return c.json({ error: 'User not found' }, 401)
   }
 
   // Attach user to context
-  c.set('user', user)
+  c.set('user', user as User)
 
   await next()
 }
@@ -47,14 +49,13 @@ export async function optionalAuthMiddleware(c: Context, next: Next) {
     const payload = await verifyAccessToken(c, accessToken)
 
     if (payload) {
-      const user = await c.env.DB.prepare(
-        'SELECT id, username, email, avatar_url as avatarUrl, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?'
-      )
-        .bind(payload.sub)
-        .first<User>()
+      const db = getDB(c.env.DB)
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, payload.sub),
+      })
 
       if (user) {
-        c.set('user', user)
+        c.set('user', user as User)
       }
     }
   }

@@ -15,6 +15,7 @@ export async function initiateGitHubOAuth(c: Context) {
   const params = new URLSearchParams({
     client_id: c.env.GITHUB_APP_CLIENT_ID,
     redirect_uri: `${c.env.APP_URL}/api/auth/github/callback`,
+    scope: 'user:email',
     state,
   })
 
