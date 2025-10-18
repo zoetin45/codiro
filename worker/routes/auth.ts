@@ -144,6 +144,7 @@ auth.post('/logout', async (c) => {
  * Get current authenticated user
  */
 auth.get('/me', authMiddleware, async (c) => {
+  console.log('c: ', c)
   const user = c.get('user')
   return c.json({ user })
 })
