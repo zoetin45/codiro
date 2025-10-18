@@ -1,6 +1,10 @@
 import { Hono } from 'hono'
+import auth from './routes/auth'
 
 const app = new Hono<{ Bindings: Env }>()
+
+// Auth routes
+app.route('/api/auth', auth)
 
 // Test endpoint
 app.get('/api/test', (c) => {

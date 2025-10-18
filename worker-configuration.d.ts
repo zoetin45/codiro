@@ -7,6 +7,10 @@ declare namespace Cloudflare {
   }
   interface Env {
     DB: D1Database
+    JWT_SECRET: string
+    GITHUB_APP_CLIENT_ID: string
+    GITHUB_APP_CLIENT_SECRET: string
+    APP_URL: string
   }
 }
 interface Env extends Cloudflare.Env {}
@@ -6683,7 +6687,7 @@ type AIGatewayHeaders = {
   [key: string]: string | number | boolean | object
 }
 type AIGatewayUniversalRequest = {
-  provider: AIGatewayProviders | string  
+  provider: AIGatewayProviders | string
   endpoint: string
   headers: Partial<AIGatewayHeaders>
   query: unknown
@@ -6700,7 +6704,7 @@ declare abstract class AiGateway {
       extraHeaders?: object
     }
   ): Promise<Response>
-  getUrl(provider?: AIGatewayProviders | string): Promise<string>  
+  getUrl(provider?: AIGatewayProviders | string): Promise<string>
 }
 interface AutoRAGInternalError extends Error {}
 interface AutoRAGNotFoundError extends Error {}
